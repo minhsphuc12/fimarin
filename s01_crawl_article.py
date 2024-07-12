@@ -2,7 +2,7 @@ from datetime import datetime
 import pandas as pd
 from playwright.sync_api import sync_playwright
 from tqdm import tqdm
-
+from pprint import pprint
 # start on given domain, get all links presented with title
 # crawl only today news (how?)
 
@@ -74,18 +74,16 @@ def get_links(url):
             # publish_date = article.query_selector('.sc-longform-header-date').text_content()
 
             if headline_element and content_element:
-                headline = headline_element.text_content()
-                content = content_element.text_content()
+                title = headline_element.text_content()
+                subtitle = content_element.text_content()
                 article_url = headline_element.get_attribute('href')
 
                 # full_content = fetch_article_content(article_url, browser)
 
                 articles.append({
-                    'headline': headline,
-                    'content': content,
+                    'title': title,
+                    'subtitle': subtitle,
                     'url': article_url,
-                    # 'date': publish_date,
-                    # 'full_content': full_content
                 })
 
             else:
@@ -104,9 +102,9 @@ for url in tqdm(urls):
 
 [len(articles_crawled[url]) for url in articles_crawled.keys()]
 
-articles_crawled_parsed = [{'domain': url, **article} for article in articles_crawled[url] for url in articles_crawled.keys()]
+articles_crawled_parsed = [{'domain': url, **article} for url in articles_crawled.keys() for article in articles_crawled[url]]
 
-df = pd.DataFrame(articles_crawled_parsed).reset_index(drop=True)
+df = pd.DataFrame(articles_crawled_parsed).reset_index(drop=True).drop_duplicates(['url'])
 
 today_date = datetime.today().strftime('%Y-%m-%d')
 df.to_csv(f'{page}.{today_date}.csv')
