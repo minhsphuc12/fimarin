@@ -6,6 +6,7 @@ import nest_asyncio
 from playwright.async_api import async_playwright
 
 today_date = datetime.today().strftime('%Y-%m-%d')
+today_date = '2024-07-16'
 
 filtered_df = pd.read_csv(f'filtered_news.{today_date}.csv', index_col=0)
 

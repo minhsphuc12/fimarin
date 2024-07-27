@@ -100,7 +100,6 @@ for url in tqdm(urls):
     except:
         failed_urls.append(url)
 
-[len(articles_crawled[url]) for url in articles_crawled.keys()]
 
 articles_crawled_parsed = [{'domain': url, **article} for url in articles_crawled.keys() for article in articles_crawled[url]]
 
