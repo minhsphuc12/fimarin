@@ -1,9 +1,12 @@
+from importlib import reload
 from tqdm import tqdm
-from transformers import pipeline
 import time
 import pandas as pd, numpy as np
 from datetime import datetime
 import torch
+import helpers
+reload(helpers)
+
 # for loop to read all crawled title from all sources today
 page = 'thitruongtaichinhtiente.vn'
 today_date = datetime.today().strftime('%Y-%m-%d')
@@ -13,63 +16,72 @@ df = pd.read_csv(f'{page}.{today_date}.csv', index_col=0).drop_duplicates(['url'
 df['title_subtitle'] = df['title'] + ' #:# ' + df['subtitle']
 
 # classify by keyword
-# - flag
-keywords = ['tín dụng', 'tiêu dùng', 'điểm', 'chính sách', 'sản phẩm', 'thẻ tín dụng']
-df['relevant'] = df['title_subtitle'].apply(lambda x: any(keyword.lower() in x.lower() for keyword in keywords))
-df['relevant'].sum()
-
-# classify by model
-# - label: manual
-# - model: small 
+# keywords = ['tín dụng', 'tiêu dùng', 'điểm', 'chính sách', 'sản phẩm', 'thẻ tín dụng']
+# df['relevant'] = df['title_subtitle'].apply(lambda x: any(keyword.lower() in x.lower() for keyword in keywords))
+# df['relevant'].sum()
 
 # translate 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-model_name = "VietAI/envit5-translation"
-tokenizer = AutoTokenizer.from_pretrained(model_name)  
-translator = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-from transformers.tokenization_utils import PreTrainedTokenizer
+translation_model_name = "VietAI/envit5-translation"
 
-def translate_model(text_list, translator, tokenizer:PreTrainedTokenizer):
-    outputs = translator.generate(tokenizer(text_list, return_tensors="pt", padding=True).input_ids, max_length=512)
-    return tokenizer.batch_decode(outputs, skip_special_tokens=True)
-
-def translate_model(text_list, translator, tokenizer:PreTrainedTokenizer, batch_size=8):
-    """
-    text_list (list): List of texts to be translated.
-    translator: Translation model.
-    tokenizer: Tokenizer for the model.
-    batch_size (int): Number of texts to process in each batch.
-    list: List of translated texts.
-    """
-    translated_texts = []
-    # Process the text list in batches
-    for i in range(0, len(text_list), batch_size):
-        batch_texts = text_list[i:i + batch_size]
-        inputs = tokenizer(batch_texts, return_tensors="pt", padding=True)
-        outputs = translator.generate(inputs.input_ids, max_length=512)
-        translations = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        translated_texts.extend(translations)
-    return translated_texts
-
+# translate using transfomers tokenizer in batch to reduce work load 
 a = time.time()
-df['title_subtitle_en'] = translate_model(df['title_subtitle'].to_list(), translator=translator, tokenizer=tokenizer, batch_size=20)
+df['title_subtitle_en'] = helpers.translate_batch(('vi:' + df['title_subtitle']).to_list(), model_name=translation_model_name, batch_size=20)
 print(time.time()-a)
+# best result comes with batch size 20
 
+helpers.translate_pipeline(['en: I want to go out tonight'], model_name=translation_model_name)
 
-def classify_model(text, classifier, categories):
-    result = classifier(text, candidate_labels=categories)
-    return result['labels'][0]
+# classification
+classify_model_name = 'facebook/bart-large-mnli'
 
 categories = ["product", 'credit scoring', "legal", "market trend", "business update", 'technology innovation', 'other']
-classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-df['category'] = [classify_model(text, classifier=classifier, categories=categories) for text in tqdm(df['title_subtitle_en'].to_list())]
 
-df[['title', 'category']]
+# directly apply pipeline to classify
+df['category'] = [helpers.classify_text(text, model_name=classify_model_name, categories=categories) 
+                  for text in tqdm(df['title_subtitle'].to_list())]
 
+# 10s/it
+# done in ?? min
+
+# using multithreading while apply pipeline parralel classification 
+reload(helpers)
+
+df['category'] = helpers.classify_text_batch_pipeline(texts=df['title_subtitle'].tolist(), model_name=classify_model_name, categories=categories, batch_size=4)
+
+# best with batch 4 vietnamese
+# completed in 8 min (3s/it)
+
+helpers.classify_text_batch_pipeline(texts=('vi:' + df['title_subtitle']).head(8).tolist(), model_name=classify_model_name, categories=categories, batch_size=4)
+# using direct model without translation is not helpful 
+#        category  count
+# 0         legal      1
+# 1  market trend      1
+# 2         other    208
+# 3       product      6
+
+df['category'] = helpers.classify_text_batch_pipeline(texts=df['title_subtitle_en'].tolist(), model_name=classify_model_name, categories=categories, batch_size=4)
+
+# classify from english is faster (3 min, 1.2s/it)
+# with translation have more success
+#                 category  count
+# 0        business update     15
+# 1         credit scoring      2
+# 2                  legal     17
+# 3           market trend     31
+# 4                  other     94
+# 5                product     40
+# 6  technology innovation     17
+
+
+# using multithreading with transformer tokenizer
+df['cateogry'] = helpers.classify_texts_batch(texts=df['title_subtitle'].tolist(), model_name=classify_model_name, categories=categories, batch_size=20)
+# batch size expect 20 min ~ 8s/it
+
+# check result
+df[['title_subtitle', 'category']]
 
 # filter then save to batch to crawl full content
 df.groupby('category').agg(count=('url', 'count')).reset_index()
-relevant_df = df[df['relevant']]
-relevant_df.groupby('category').agg(count=('url', 'count')).reset_index()
 
-relevant_df.to_csv(f'filtered_news.{today_date}.csv')
+df.to_csv(f's02_classified_news.{today_date}.csv')
+

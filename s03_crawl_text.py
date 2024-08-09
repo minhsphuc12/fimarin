@@ -8,7 +8,8 @@ from playwright.async_api import async_playwright
 today_date = datetime.today().strftime('%Y-%m-%d')
 today_date = '2024-07-16'
 
-filtered_df = pd.read_csv(f'filtered_news.{today_date}.csv', index_col=0)
+classified_df = pd.read_csv(f's02_classified_news.{today_date}.csv', index_col=0)
+filtered_df = classified_df[classified_df['category']!='other']
 
 # def fetch_article_content(url):
 #     with sync_playwright() as p:
@@ -38,8 +39,6 @@ filtered_df = pd.read_csv(f'filtered_news.{today_date}.csv', index_col=0)
 
 
 # filtered_df['content2'] = filtered_df['url'].map(fetch_article_content)
-
-
 
 
 nest_asyncio.apply()
@@ -78,7 +77,6 @@ a = time.time()
 asyncio.run(main())
 print(time.time() - a)
 
-filtered_df['date'] = filtered_df['content'].map(lambda x: x.split(' ')[2])
-filtered_df['date'] = pd.to_datetime(filtered_df['date'])
+filtered_df['date'] = pd.to_datetime(filtered_df['content'].map(lambda x: x.split(' ')[2]))
 
-filtered_df.to_csv(f'crawled_news.{today_date}.csv')
+filtered_df.to_csv(f's03_crawled_news.{today_date}.csv')
