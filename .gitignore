@@ -2,3 +2,7 @@
 unused*
 .gitignore
 .env
+__pycache__
+**/*.pyc
+.pyc
+.DS_Store
