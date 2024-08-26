@@ -2,7 +2,8 @@ from datetime import datetime
 import pandas as pd
 from playwright.sync_api import sync_playwright
 from tqdm import tqdm
-from pprint import pprint
+import csv
+
 # start on given domain, get all links presented with title
 # crawl only today news (how?)
 
@@ -90,20 +91,35 @@ def get_links(url):
                 print("Some elements were not found for an article, skipping.")
     return articles
 
-articles_crawled = {}
-failed_urls = []
+def main():
+    articles_crawled = {}
+    failed_urls = []
 
-for url in tqdm(urls):
-    try:
-        articles = get_links(url)
-        articles_crawled[url] = articles
-    except:
-        failed_urls.append(url)
+    for url in tqdm(urls):
+        try:
+            articles = get_links(url)
+            articles_crawled[url] = articles
+        except:
+            failed_urls.append(url)
 
+    articles_crawled_parsed = [{'domain': url, **article} for url in articles_crawled.keys() for article in articles_crawled[url]]
 
-articles_crawled_parsed = [{'domain': url, **article} for url in articles_crawled.keys() for article in articles_crawled[url]]
+    df = pd.DataFrame(articles_crawled_parsed).reset_index(drop=True).drop_duplicates(['url'])
 
-df = pd.DataFrame(articles_crawled_parsed).reset_index(drop=True).drop_duplicates(['url'])
+    # Add empty 'content' column to match the format of s01_crawl_thoibaonganhang.py
+    df['content'] = ''
 
-today_date = datetime.today().strftime('%Y-%m-%d')
-df.to_csv(f'{page}.{today_date}.csv')
+    # Rename columns to match the format of s01_crawl_thoibaonganhang.py
+    df = df.rename(columns={'subtitle': 'summary'})
+
+    # Reorder columns
+    df = df[['title', 'summary', 'url', 'content', 'domain']]
+
+    today_date = datetime.today().strftime('%Y-%m-%d')
+    output_filename = f'thitruongtaichinhtiente.{today_date}.csv'
+
+    df.to_csv(output_filename, index=False, quoting=csv.QUOTE_ALL, encoding='utf-8-sig')
+    print(f"Crawled {len(df)} news items and saved to {output_filename}")
+
+if __name__ == "__main__":
+    main()
