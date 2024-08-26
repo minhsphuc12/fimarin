@@ -48,13 +48,13 @@ def split_article_into_parts(article, max_length):
 
 def translate_pipeline(text, model_name, max_length=512):
     global device
-    translator = pipeline("translation", model=model_name).to(device)
+    translator = pipeline("translation", model=model_name, device=device)
     
     return [x['translation_text'] for x in translator(text, max_length=max_length)]
 
 def translate_pipeline_batch(texts, model_name, batch_size=4, **kwargs):
     global device
-    translator = pipeline("translation", model=model_name).to(device)
+    translator = pipeline("translation", model=model_name, device=device)
     translated_texts = []
     for i in tqdm(range(0, len(texts), batch_size)):
         batch_texts = texts[i:i + batch_size]
@@ -94,7 +94,7 @@ def translate_batch_vi_en(text_list, to_en=True, model_name="VietAI/envit5-trans
 
 def classify_text(text, categories, model_name):
     global device
-    classifier = pipeline("zero-shot-classification", model=model_name).to(device)
+    classifier = pipeline("zero-shot-classification", model=model_name, device=device)
     result = classifier(text, candidate_labels=categories)
     predicted_category = result['labels'][0]
     return predicted_category
@@ -105,7 +105,7 @@ def classify_text_batch_pipeline(texts, categories, model_name, batch_size=4):
         result = classifier(text, candidate_labels=categories)
         return result['labels'][0]
 
-    classifier = pipeline("zero-shot-classification", model=model_name).to(device)
+    classifier = pipeline("zero-shot-classification", model=model_name, device=device)
     
     results = [None] * len(texts)
     
@@ -172,19 +172,6 @@ def classify_texts_batch(texts, categories, model_name, batch_size=15):
     return results
 
 
-# summarize = pipeline('summarization', model='VietAI/vit5-base-vietnews-summarization')
-
-# def summarize_pipeline(text, model_name, **kwargs):
-#     '''
-#     Args:
-#         max_length: default 150
-#         min_length: default 30 
-#         do_sample: default False
-#     '''    
-#     summarizer = pipeline("summarization", model=model_name)
-#     summary = summarizer(text, **kwargs)
-#     return summary[0]['summary_text']
-
 def summarize_pipeline(texts, model_name, **kwargs):
     '''
     Args:
@@ -193,7 +180,9 @@ def summarize_pipeline(texts, model_name, **kwargs):
         do_sample: default False
     '''    
     global device
-    summarizer = pipeline("summarization", model=model_name).to(device)
-    summaries = summarizer(texts, **kwargs)
+    texts = [texts] if type(texts) == str else texts
+    max_char_length = max([len(text) for text in texts])
+    summarizer = pipeline("summarization", model=model_name, device=device)
+    summaries = summarizer(texts, max_length=max_char_length/3.5*1.2, **kwargs)
     return [x['summary_text'] for x in summaries]
 

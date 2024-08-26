@@ -6,6 +6,7 @@ import helpers
 from importlib import reload
 reload(helpers)
 
+
 today_date = datetime.today().strftime('%Y-%m-%d')
 today_date = '2024-07-16'
 
@@ -18,7 +19,7 @@ translation_model_name = "VietAI/envit5-translation"
 # df['content_en'] = helpers.translate_pipeline_batch(df['content'].tolist(), max_length=2000, model_name=translation_model_name, batch_size=4)
 # 172s for 4 article, max_length 2000
 # same with using translate_pipeline of 4 article
-df['content_en'] = [''.join(helpers.translate_pipeline(helpers.split_article_into_parts(content, max_length=512), model_name=translation_model_name, max_length=512)) for content in tqdm(df['content'].tolist())]
+df['content_en'] = holder = [''.join(helpers.translate_pipeline(helpers.split_article_into_parts(content, max_length=512), model_name=translation_model_name, max_length=512)) for content in tqdm(df['content'].tolist())]
 # 25s/it
 
 
@@ -39,9 +40,8 @@ df['content_en'] = [''.join(helpers.translate_pipeline(helpers.split_article_int
 # # 72s 
 df.to_csv(f's04_translate_content.{today_date}.csv')
 
-
 #
-df = pd.read_csv(f's04_translate_content.{today_date}.csv', index_col=0)
+df = pd.read_csv(f's04_translate_content.{today_date}.csv', index_col=0).head(30)
 
 # Initialize the zero-shot summarization pipeline
 
@@ -59,9 +59,8 @@ df = pd.read_csv(f's04_translate_content.{today_date}.csv', index_col=0)
 
 # try english model
 summarization_model_name = "facebook/bart-large-cnn"
-df['content_summarize_en'] = [''.join(helpers.summarize_pipeline(helpers.split_article_into_parts(x, 3000), model_name=summarization_model_name, max_length=100, min_length=50)) for x in tqdm(df['content_en'].tolist())]
-df['content_summarize_en'] = df['content_summarize']
-del df['content_summarize']
+df['content_summarize_en'] = [''.join(helpers.summarize_pipeline(helpers.split_article_into_parts(x, 2000), model_name=summarization_model_name, min_length=50)) for x in tqdm(df['content_en'].tolist())]
+
 # i = 0
 # print(df['content_en'].head(5).tolist()[i], '\n\n',  test_sum[i])
 
