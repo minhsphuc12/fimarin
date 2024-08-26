@@ -1,0 +1,10 @@
+# Crontab configuration
+
+# Run the main orchestration script daily at 1:00 AM
+0 1 * * * /usr/bin/python3 /path/to/main_orchestration.py
+
+# Individual tasks (commented out as they will be triggered by the main script)
+# 0 2 * * * /usr/bin/python3 /path/to/s01_crawl_script.py
+# 0 3 * * * /usr/bin/python3 /path/to/s02_classify_title_script.py
+# 0 4 * * * /usr/bin/python3 /path/to/s03_crawl_content_script.py
+# 0 5 * * * /usr/bin/python3 /path/to/s04_summarize_content_script.py
