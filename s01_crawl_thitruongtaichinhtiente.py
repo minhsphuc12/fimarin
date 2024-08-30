@@ -1,8 +1,7 @@
 from datetime import datetime
-import pandas as pd
 from playwright.sync_api import sync_playwright
 from tqdm import tqdm
-import csv
+from utils import insert_to_mongodb
 
 # start on given domain, get all links presented with title
 # crawl only today news (how?)
@@ -101,25 +100,18 @@ def main():
             articles_crawled[url] = articles
         except:
             failed_urls.append(url)
+    
+    # Prepare data for MongoDB insertion
+    all_articles = []
+    for url, articles in articles_crawled.items():
+        for article in articles:
+            article['domain'] = url
+            article['content'] = ''  # Add empty 'content' field
+            article['summary'] = article.pop('subtitle', '')
+            all_articles.append(article)
 
-    articles_crawled_parsed = [{'domain': url, **article} for url in articles_crawled.keys() for article in articles_crawled[url]]
-
-    df = pd.DataFrame(articles_crawled_parsed).reset_index(drop=True).drop_duplicates(['url'])
-
-    # Add empty 'content' column to match the format of s01_crawl_thoibaonganhang.py
-    df['content'] = ''
-
-    # Rename columns to match the format of s01_crawl_thoibaonganhang.py
-    df = df.rename(columns={'subtitle': 'summary'})
-
-    # Reorder columns
-    df = df[['title', 'summary', 'url', 'content', 'domain']]
-
-    today_date = datetime.today().strftime('%Y-%m-%d')
-    output_filename = f'thitruongtaichinhtiente.{today_date}.csv'
-
-    df.to_csv(output_filename, index=False, quoting=csv.QUOTE_ALL, encoding='utf-8-sig')
-    print(f"Crawled {len(df)} news items and saved to {output_filename}")
+    # Insert data into MongoDB
+    insert_to_mongodb(all_articles, "thitruongtaichinhtiente")
 
 if __name__ == "__main__":
     main()

@@ -1,7 +1,6 @@
 from playwright.sync_api import sync_playwright
 from datetime import datetime, timedelta
-import pandas as pd
-import csv
+from utils import insert_to_mongodb
 
 def crawl_thoibaonganhang(days=7):
     with sync_playwright() as p:
@@ -55,23 +54,14 @@ def crawl_thoibaonganhang(days=7):
 def main():
     news_items = crawl_thoibaonganhang()
     
-    # Convert news_items to a DataFrame
-    df = pd.DataFrame(news_items)
+    # Prepare data for MongoDB insertion
+    for item in news_items:
+        item['domain'] = 'https://thoibaonganhang.vn/'
+        item['summary'] = item.pop('subtitle')
+        item['url'] = item.pop('link')
 
-    # Rename columns to match the format of s01_crawl_thitruongtaichinhtiente.py
-    df = df.rename(columns={'subtitle': 'summary', 'link': 'url'})
-
-    # Add 'domain' column
-    df['domain'] = 'https://thoibaonganhang.vn/'
-
-    # Reorder columns
-    df = df[['title', 'summary', 'url', 'content', 'domain']]
-
-    today_date = datetime.today().strftime('%Y-%m-%d')
-    output_filename = f'thoibaonganhang.{today_date}.csv'
-
-    df.to_csv(output_filename, index=False, quoting=csv.QUOTE_ALL, encoding='utf-8-sig')
-    print(f"Crawled {len(df)} news items and saved to {output_filename}")
+    # Insert data into MongoDB
+    insert_to_mongodb(news_items, "thoibaonganhang")
 
 if __name__ == "__main__":
     main()
