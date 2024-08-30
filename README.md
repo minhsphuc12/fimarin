@@ -8,3 +8,16 @@
 - Revise code to insert comment into every code chunks
 - Use LLM to revise, summarize and control every commit
 
+
+
+install mongodb 
+brew tap mongodb/brew
+brew install mongodb-community@6.0
+brew services start mongodb/brew/mongodb-community@6.0
+
+brew --prefix mongodb-community
+
+export PATH="/opt/homebrew/opt/mongodb-community@6.0/bin:$PATH"
+mongod
+
+/opt/homebrew/etc/mongod.conf
