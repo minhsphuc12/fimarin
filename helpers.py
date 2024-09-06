@@ -186,3 +186,19 @@ def summarize_pipeline(texts, model_name, **kwargs):
     summaries = summarizer(texts, max_length=max_char_length/3.5*1.2, **kwargs)
     return [x['summary_text'] for x in summaries]
 
+
+import pymongo
+
+def insert_article_to_mongodb(data, collection_name, db_name='news', host="mongodb://localhost:27017/", ):
+    client = pymongo.MongoClient(host=host)
+    db = client[db_name]
+    collection = db[collection_name]
+
+    inserted_count = 0
+    for item in data:
+        # Insert or update based on the URL
+        result = collection.update_one({'url': item['url']}, {'$set': item}, upsert=True)
+        if result.upserted_id or result.modified_count > 0:
+            inserted_count += 1
+
+    print(f"Inserted/updated {inserted_count} news items in MongoDB collection '{collection_name}'")
