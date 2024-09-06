@@ -1,9 +1,11 @@
 from tqdm import tqdm
 from playwright.sync_api import sync_playwright
 from datetime import datetime, timedelta
-from utils import insert_to_mongodb
+from helpers import insert_article_to_mongodb
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+SOURCE = 'thoibaonganhang.vn'
 
 def fetch_news_item(link, cutoff_date):
     try:
@@ -72,12 +74,13 @@ def main():
     len(news_items)
     # Prepare data for MongoDB insertion
     for item in news_items:
+        item['source'] = SOURCE
         item['domain'] = 'https://thoibaonganhang.vn/'
         item['summary'] = item.pop('subtitle')
         item['url'] = item.pop('link')
 
     # Insert data into MongoDB
-    insert_to_mongodb(news_items, "thoibaonganhang")
+    insert_article_to_mongodb(news_items, db_name='news', collection_name='articles')
 
 if __name__ == "__main__":
     main()

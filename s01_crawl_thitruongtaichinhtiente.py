@@ -1,12 +1,12 @@
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 from tqdm import tqdm
-from utils import insert_to_mongodb
+from helpers import insert_article_to_mongodb
 
 # start on given domain, get all links presented with title
 # crawl only today news (how?)
 
-page = 'thitruongtaichinhtiente.vn'
+SOURCE = 'thitruongtaichinhtiente.vn'
 
 urls = [
     'https://thitruongtaichinhtiente.vn/hoat-dong-ngan-hang',
@@ -105,13 +105,14 @@ def main():
     all_articles = []
     for url, articles in articles_crawled.items():
         for article in articles:
+            article['source'] = SOURCE
             article['domain'] = url
             article['content'] = ''  # Add empty 'content' field
             article['summary'] = article.pop('subtitle', '')
             all_articles.append(article)
 
     # Insert data into MongoDB
-    insert_to_mongodb(all_articles, "thitruongtaichinhtiente")
+    insert_article_to_mongodb(all_articles, db_name='news', collection_name='articles')
 
 if __name__ == "__main__":
     main()
