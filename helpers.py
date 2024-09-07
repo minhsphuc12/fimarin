@@ -99,11 +99,13 @@ def classify_text(text, categories, model_name):
     predicted_category = result['labels'][0]
     return predicted_category
 
-def classify_text_batch_pipeline(texts, categories, model_name, batch_size=4):
+def classify_text_batch_pipeline(texts, categories, model_name, batch_size=4, num_tags=3):
     global device
     def _classify_text(text, categories, classifier):
         result = classifier(text, candidate_labels=categories)
-        return result['labels'][0]
+        main_category = result['labels'][0]
+        tags = result['labels'][1:num_tags+1]  # Next 3 most relevant categories
+        return {'category': main_category, 'tags': tags}
 
     classifier = pipeline("zero-shot-classification", model=model_name, device=device)
     
