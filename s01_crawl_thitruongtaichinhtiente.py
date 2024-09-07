@@ -1,118 +1,117 @@
 from datetime import datetime
 from playwright.sync_api import sync_playwright
+from concurrent.futures import ThreadPoolExecutor
+from helpers import insert_article_to_mongodb, check_url_exists_in_mongodb
 from tqdm import tqdm
-from helpers import insert_article_to_mongodb
-
-# start on given domain, get all links presented with title
-# crawl only today news (how?)
-
-SOURCE = 'thitruongtaichinhtiente.vn'
 
 urls = [
     'https://thitruongtaichinhtiente.vn/hoat-dong-ngan-hang',
     'https://thitruongtaichinhtiente.vn/hoat-dong-ngan-hang/san-pham-dich-vu',
+    'https://thitruongtaichinhtiente.vn/phap-luat-nghiep-vu/chinh-sach-moi',
     'https://thitruongtaichinhtiente.vn/hoat-dong-ngan-hang/tin-hiep-hoi-ngan-hang',
     'https://thitruongtaichinhtiente.vn/hoat-dong-ngan-hang/tin-hoi-vien',
     'https://thitruongtaichinhtiente.vn/dien-dan-tai-chinh-tien-te',
     'https://thitruongtaichinhtiente.vn/dien-dan-tai-chinh-tien-te/nghien-cuu-trao-doi',
     'https://thitruongtaichinhtiente.vn/dien-dan-tai-chinh-tien-te/van-de-nhan-dinh',
     'https://thitruongtaichinhtiente.vn/phap-luat-nghiep-vu',
-    'https://thitruongtaichinhtiente.vn/phap-luat-nghiep-vu/chinh-sach-moi',
     'https://thitruongtaichinhtiente.vn/phap-luat-nghiep-vu/nghiep-vu-tai-chinh-ngan-hang',
     'https://thitruongtaichinhtiente.vn/phap-luat-nghiep-vu/hoi-dap',
     'https://thitruongtaichinhtiente.vn/cong-nghe',
-
 ]
 
-# url = urls[4]
-# url = 'https://thitruongtaichinhtiente.vn/'
-
-def get_links(url):
+def get_article_links(url):
     with sync_playwright() as p:
-        # Launch the browser in headless mode
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-
-        # Go to the specified URL
         page.goto(url, wait_until='domcontentloaded')
-        # print(page.content())
-        # Wait for the content to load (if necessary, adjust or add specific waits)
-
-        # Extract data: headlines and contents
-
-
-        ### TO DO: implement scroll to get more content but unsuccessful
-        # page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
-        # # Optionally, wait for any lazy-loaded content
-        # page.keyboard.down('PageDown')
-        # page.evaluate('''async () => {
-        #         await new Promise((resolve, reject) => {
-        #             var totalHeight = 0;
-        #             var distance = 5;
-        #             var timer = setInterval(() => {
-        #                 var scrollHeight = document.body.scrollHeight;
-        #                 window.scrollBy(0, distance);
-        #                 totalHeight += distance;
-
-        #                 if(totalHeight >= scrollHeight){
-        #                     clearInterval(timer);
-        #                     resolve();
-        #                 }
-        #             }, 100);
-        #         });
-        #     }''')
-        # page.wait_for_timeout(6000)  # waits for 1 second
-
         page.wait_for_selector(".b-grid")
-        articles = []
-        article_containers = page.query_selector_all('.b-grid')
-
-        for article in tqdm(article_containers):
-            
+        
+        article_links = []
+        for article in page.query_selector_all('.b-grid'):
             headline_element = article.query_selector('.b-grid__title > a')
             content_element = article.query_selector('.b-grid__desc > a')
-            # publish_date = article.query_selector('.sc-longform-header-date').text_content()
-
+            
             if headline_element and content_element:
                 title = headline_element.text_content()
                 subtitle = content_element.text_content()
                 article_url = headline_element.get_attribute('href')
+                article_links.append((title, subtitle, article_url))
+        
+        browser.close()
+    return article_links
 
-                # full_content = fetch_article_content(article_url, browser)
+def process_article(article_info):
+    title, subtitle, article_url = article_info
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        
+        try:
+            page.goto(article_url, wait_until='domcontentloaded', timeout=10000)
+            
+            if check_url_exists_in_mongodb(article_url, 'articles', db_name='news', 
+                                           non_null_fields=['title', 'content', 'date', 'title']):
+                print(f"Article {article_url} already exists in MongoDB. Skipping...")
+                return None
 
-                articles.append({
-                    'title': title,
-                    'subtitle': subtitle,
-                    'url': article_url,
-                })
+            article_content = page.query_selector_all('.c-news-detail p')
+            content = " ".join([p.text_content() for p in article_content])
 
+            date_element = page.query_selector('.sc-longform-header-date')
+            if date_element:
+                date_str = date_element.text_content().strip()
+                try:
+                    date_obj = datetime.strptime(date_str, "%d/%m/%Y - %H:%M")
+                except ValueError:
+                    date_obj = datetime.now()
             else:
-                print("Some elements were not found for an article, skipping.")
-    return articles
+                date_obj = datetime.now()
+
+            return {
+                'title': title,
+                'subtitle': subtitle,
+                'url': article_url,
+                'content': content,
+                'date': date_obj,
+                'domain': 'https://thitruongtaichinhtiente.vn'
+            }
+        except Exception as e:
+            print(f"Error processing article {article_url}: {str(e)}")
+            return None
+        finally:
+            browser.close()
 
 def main():
-    articles_crawled = {}
-    failed_urls = []
-
-    for url in tqdm(urls):
-        try:
-            articles = get_links(url)
-            articles_crawled[url] = articles
-        except:
-            failed_urls.append(url)
+    # Stage 1: Get article links from all URLs
+    all_article_links = []
+    for url in urls:
+        article_links = get_article_links(url)
+        all_article_links.extend(article_links)
+        print(f"Fetched {len(article_links)} links from: {url}")
     
-    # Prepare data for MongoDB insertion
-    all_articles = []
-    for url, articles in articles_crawled.items():
-        for article in articles:
-            article['source'] = SOURCE
-            article['domain'] = url
-            article['content'] = ''  # Add empty 'content' field
-            article['summary'] = article.pop('subtitle', '')
-            all_articles.append(article)
+    print(f"Total articles found: {len(all_article_links)}")
+
+    # Mass check against MongoDB
+    new_article_links = []
+    for title, subtitle, url in tqdm(all_article_links, desc="Checking MongoDB"):
+        if not check_url_exists_in_mongodb(url, 'articles', db_name='news', 
+                                           non_null_fields=['title', 'content', 'date']):
+            new_article_links.append((title, subtitle, url))
+    
+    print(f"New articles to process: {len(new_article_links)}")
+
+    # Stage 2: Process articles and insert into MongoDB
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        articles = []
+        for result in tqdm(executor.map(process_article, new_article_links), 
+                           total=len(new_article_links), 
+                           desc="Processing articles"):
+            if result:
+                articles.append(result)
 
     # Insert data into MongoDB
-    insert_article_to_mongodb(all_articles, db_name='news', collection_name='articles')
+    insert_article_to_mongodb(articles, db_name='news', collection_name='articles')
+    print(f"Inserted {len(articles)} articles into MongoDB")
 
 if __name__ == "__main__":
     main()
