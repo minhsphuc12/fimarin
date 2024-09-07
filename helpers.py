@@ -202,3 +202,20 @@ def insert_article_to_mongodb(data, collection_name, db_name='news', host="mongo
             inserted_count += 1
 
     print(f"Inserted/updated {inserted_count} news items in MongoDB collection '{collection_name}'")
+
+
+def check_url_exists_in_mongodb(url, collection_name, db_name='news', host="mongodb://localhost:27017/", non_null_fields=None):
+    client = pymongo.MongoClient(host=host)
+    db = client[db_name]
+    collection = db[collection_name]
+
+    query = {'url': url}
+    if non_null_fields:
+        query['$and'] = [
+            {field: {'$ne': None}} for field in non_null_fields
+        ]
+
+    existing_document = collection.find_one(query)
+    
+    client.close()
+    return existing_document is not None
