@@ -1,5 +1,7 @@
 from airflow import DAG
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.operators.python import BranchPythonOperator
+from airflow.operators.dummy import DummyOperator
 from datetime import datetime, timedelta
 
 default_args = {
@@ -13,34 +15,44 @@ default_args = {
 }
 
 dag = DAG(
-    'main_dag',
+    'main_news_dag',
     default_args=default_args,
-    description='Main DAG to orchestrate the workflow',
+    description='Main DAG to orchestrate the news workflow',
     schedule_interval='@daily',
 )
 
-trigger_s01 = TriggerDagRunOperator(
-    task_id='trigger_s01_crawl',
-    trigger_dag_id='s01_crawl_dag',
+trigger_crawl = TriggerDagRunOperator(
+    task_id='trigger_crawl',
+    trigger_dag_id='crawl_dag',
     dag=dag,
 )
 
-trigger_s02 = TriggerDagRunOperator(
-    task_id='trigger_s02_classify_title',
-    trigger_dag_id='s02_classify_title_dag',
+trigger_classify = TriggerDagRunOperator(
+    task_id='trigger_classify',
+    trigger_dag_id='classify_dag',
     dag=dag,
 )
 
-trigger_s03 = TriggerDagRunOperator(
-    task_id='trigger_s03_crawl_content',
-    trigger_dag_id='s03_crawl_content_dag',
+def check_if_sunday():
+    if datetime.now().weekday() == 6:  # 6 represents Sunday
+        return 'trigger_newsletter'
+    return 'skip_newsletter'
+
+branch_task = BranchPythonOperator(
+    task_id='check_if_sunday',
+    python_callable=check_if_sunday,
     dag=dag,
 )
 
-trigger_s04 = TriggerDagRunOperator(
-    task_id='trigger_s04_summarize_content',
-    trigger_dag_id='s04_summarize_content_dag',
+trigger_newsletter = TriggerDagRunOperator(
+    task_id='trigger_newsletter',
+    trigger_dag_id='newsletter_dag',
     dag=dag,
 )
 
-trigger_s01 >> trigger_s02 >> trigger_s03 >> trigger_s04
+skip_newsletter = DummyOperator(
+    task_id='skip_newsletter',
+    dag=dag,
+)
+
+trigger_crawl >> trigger_classify >> branch_task >> [trigger_newsletter, skip_newsletter]

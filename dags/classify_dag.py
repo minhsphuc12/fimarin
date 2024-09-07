@@ -1,6 +1,7 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 from datetime import datetime, timedelta
+import sys
 
 default_args = {
     'owner': 'airflow',
@@ -13,18 +14,16 @@ default_args = {
 }
 
 dag = DAG(
-    's02_classify_title_dag',
+    'classify_dag',
     default_args=default_args,
-    description='Classify titles',
-    schedule_interval='@daily',
+    description='Classify news articles',
+    schedule_interval=None,
 )
 
-def classify_titles():
-    # Implement title classification logic here
-    pass
-
-classify_titles_task = PythonOperator(
-    task_id='classify_titles',
-    python_callable=classify_titles,
+classify_task = BashOperator(
+    task_id='classify_articles',
+    bash_command='/Users/phucnm/miniconda3/bin/python /Users/phucnm/git/misc/fimarin/s02_classify_article.py',
     dag=dag,
 )
+
+classify_task
