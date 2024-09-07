@@ -73,3 +73,5 @@ db.news.insertMany([
 # Delete a record
 db.news.deleteOne({ url: "https://example.com" })
 
+# Remove all category fields from all records
+db.articles.updateMany({}, { $unset: { category: "" } })
