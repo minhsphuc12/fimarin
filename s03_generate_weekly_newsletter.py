@@ -118,16 +118,24 @@ def generate_newsletter(articles, model='gpt-4o'):
 
 def main():
     days = 1  # Extract news from the last 7 days
+    
     articles = extract_news(days)
     print(f'Number of articles: {len(articles)}')
     # print(articles)
     newsletter = generate_newsletter(articles)
 
+    # Ensure the output directory exists
+    output_dir = os.path.expanduser('~/fimarin_output')
+    os.makedirs(output_dir, exist_ok=True)
+    print(output_dir)
+
     # Save the newsletter to a file
-    with open(f'unused_weekly_newsletter_{datetime.now().strftime("%Y%m%d")}.md', 'w') as f:
+    output_file = os.path.join(output_dir, f'unused_weekly_newsletter_{datetime.now().strftime("%Y%m%d")}.md')
+    with open(output_file, 'w') as f:
         f.write(newsletter)
 
-    print("Weekly newsletter generated successfully!")
+    print(f"Weekly newsletter generated successfully to {output_file}!")
+
 
 if __name__ == "__main__":
     main()
