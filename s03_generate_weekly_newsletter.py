@@ -117,7 +117,7 @@ def generate_newsletter(articles, model='gpt-4o'):
     return newsletter_content
 
 def main():
-    days = 1  # Extract news from the last 7 days
+    days = 7  # Extract news from the last 7 days
     
     articles = extract_news(days)
     print(f'Number of articles: {len(articles)}')
