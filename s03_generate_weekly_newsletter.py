@@ -58,7 +58,6 @@ def generate_newsletter(articles, model='gpt-4o'):
     all_articles = []
     
     for category, category_articles in grouped_articles.items():
-        newsletter_content += f"## {category.capitalize()}\n\n"
         
         # Prepare article information for the prompt
         article_info = "\n".join([f"- Title: {article['title']}\n  Subtitle: {article.get('subtitle', 'N/A')}\n  Summary: {article.get('summary', 'N/A')}\n  URL: {article.get('url', 'N/A')}" for article in category_articles])
@@ -69,11 +68,18 @@ def generate_newsletter(articles, model='gpt-4o'):
         Generate a newsletter section for the '{category}' category. Focus on the most important and impactful news from the past week.
 
         OUTPUT FORMAT SHOULD BE:
-        - CATEGORY (in vietnamese, bold, header)
+        - CATEGORY (in vietnamese, bold, header 2)
         - News 1
         - News ...
         - News n
         - Section Line breaker
+
+        Each news item should be formatted as:
+        Title (in bold, Vietnamese, header 3)
+        Summary (in Vietnamese)
+        Đọc thêm: <URL>
+    
+        You need to stay in markdown format
 
         Summarize key points, highlight trends, and provide insights. Use the following article information:
 
