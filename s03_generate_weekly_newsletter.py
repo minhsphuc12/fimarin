@@ -54,7 +54,7 @@ def generate_newsletter(articles, model='gpt-4o'):
     
     # Initialize OpenAI client
     client = OpenAI()
-    newsletter_content = "# Weekly Newsletter\n\n"
+    newsletter_content = "# Nội dung\n\n"
     all_articles = []
     
     for category, category_articles in grouped_articles.items():
@@ -69,11 +69,11 @@ def generate_newsletter(articles, model='gpt-4o'):
         Generate a newsletter section for the '{category}' category. Focus on the most important and impactful news from the past week.
 
         OUTPUT FORMAT SHOULD BE:
-        - CATEGORY header (in vietnamese, bold)
+        - CATEGORY (in vietnamese, bold, header)
         - News 1
         - News ...
         - News n
-        - Section breaker
+        - Section Line breaker
 
         Summarize key points, highlight trends, and provide insights. Use the following article information:
 
@@ -83,6 +83,8 @@ def generate_newsletter(articles, model='gpt-4o'):
         
         Your response should be well-structured, engaging, and informative. Aim for about 200-300 words per category.
         Include the URL after mentioning each news item.
+
+        Target audience: internal members of Datanest, potential investors, and other stakeholders.
 
         REMEMBER, THE OUTPUT MUST BE IN VIETNAMESE.
         """
@@ -99,7 +101,7 @@ def generate_newsletter(articles, model='gpt-4o'):
 
     # Generate executive summary
     exec_summary_prompt = f"""
-    Generate an executive summary of the top 10 most important news items from the following articles:
+    Generate an executive summary of the top 10-12 most important news items from the following articles:
 
     {newsletter_content}
 
