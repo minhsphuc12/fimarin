@@ -67,6 +67,14 @@ def generate_newsletter(articles, model='gpt-4o'):
         # Generate content for each category
         prompt = f"""
         Generate a newsletter section for the '{category}' category. Focus on the most important and impactful news from the past week.
+
+        OUTPUT FORMAT SHOULD BE:
+        - CATEGORY header (in vietnamese, bold)
+        - News 1
+        - News ...
+        - News n
+        - Section breaker
+
         Summarize key points, highlight trends, and provide insights. Use the following article information:
 
         {article_info}
@@ -75,8 +83,6 @@ def generate_newsletter(articles, model='gpt-4o'):
         
         Your response should be well-structured, engaging, and informative. Aim for about 200-300 words per category.
         Include the URL after mentioning each news item.
-
-        Your response should only include 3-4 categories.
 
         REMEMBER, THE OUTPUT MUST BE IN VIETNAMESE.
         """
@@ -99,6 +105,8 @@ def generate_newsletter(articles, model='gpt-4o'):
 
     Each summary should be one line long and focus on the most critical information.
     The output should be in Vietnamese and formatted as a bullet point list.
+    Group summaries into categories. Those categories from: {str(datanest_categories)}
+    Maximum 4 categories are used in the summary.
     """
 
     exec_summary_response = client.chat.completions.create(
