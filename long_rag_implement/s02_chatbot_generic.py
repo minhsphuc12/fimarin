@@ -21,8 +21,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_NAME = os.getenv("INDEX_NAME")
 LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 
+self = chatbot
 class RAGChatbot:
-    def __init__(self, generator='gpt-3.5-turbo', embedder='sentence-transformers/all-MiniLM-L6-v2'):
+    def __init__(self, generator='gpt-3.5-turbo', embedder='sentence-transformers/all-MiniLM-L6-v2', top_k=4, similarity_score=0.7):
         # Initialize Pinecone
         self.pc = Pinecone(api_key=PINECONE_API_KEY)
 
@@ -32,8 +33,12 @@ class RAGChatbot:
         # Initialize OpenAI ChatGPT-4
         self.llm = ChatOpenAI(model_name=generator, temperature=0.7, api_key=OPENAI_API_KEY)
 
-        # Setup Vector Store
+        # Setup Vector Store with updated retriever
         self.docsearch = PineconeVectorStore(index_name=INDEX_NAME, embedding=self.embeddings)
+        self.retriever = self.docsearch.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={"k": top_k, "score_threshold": similarity_score}
+        )
 
         # Setup Memory
         self.memory = ConversationBufferMemory(
@@ -50,16 +55,11 @@ class RAGChatbot:
         If you don't know the answer, just say that you don't know. 
         Use three sentences maximum and keep the answer concise.{context}"""
         qa_prompt = ChatPromptTemplate.from_messages([("system", qa_system_prompt), MessagesPlaceholder("chat_history"),("human", "{question}"),])
-        # question_answer_chain = create_stuff_documents_chain(self.llm, qa_prompt)
 
-        # from langchain import hub
-        # prompt = hub.pull("rlm/rag-prompt")
-
-        
-        # Setup RAG Chain
+        # Update RAG Chain to use the new retriever
         self.rag_chain = ConversationalRetrievalChain.from_llm(
             llm=self.llm,
-            retriever=self.docsearch.as_retriever(),
+            retriever=self.retriever,
             memory=self.memory,
             verbose=True,
             return_source_documents=True,
@@ -83,8 +83,7 @@ class RAGChatbot:
 
 # Usage example
 if __name__ == "__main__":
-    # chatbot = RAGChatbot()
-    chatbot = RAGChatbot(generator='gpt-4o')
+    chatbot = RAGChatbot(generator='gpt-4o', top_k=3, similarity_score=0.8)
     
     while True:
         user_input = input("You: ")
