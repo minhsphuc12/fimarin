@@ -21,7 +21,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_NAME = os.getenv("INDEX_NAME")
 LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
 
-self = chatbot
 class RAGChatbot:
     def __init__(self, generator='gpt-3.5-turbo', embedder='sentence-transformers/all-MiniLM-L6-v2', top_k=4, similarity_score=0.7):
         # Initialize Pinecone
