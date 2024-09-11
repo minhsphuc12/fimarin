@@ -18,7 +18,7 @@ def fetch_news_item(url, cutoff_date):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
-            page.goto(url, wait_until='load', timeout=10000)
+            page.goto(url, wait_until='domcontentloaded', timeout=10000)
             
             # Extract date
             date_element = page.query_selector(".format_date")
