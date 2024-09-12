@@ -17,7 +17,9 @@ collection = db['articles']
 seven_days_ago = datetime.now() - timedelta(days=7)
 query = {
     'date': {'$gte': seven_days_ago},
-    'category': {'$exists': False}
+    'category': {'$exists': False},
+    'title': {'$ne': None},
+    'subtitle': {'$ne': None}
 }
 articles = list(collection.find(query))
 

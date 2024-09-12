@@ -31,6 +31,9 @@ http://localhost:8080/
 # Start the scheduler
 airflow scheduler -D
 
+# Find the Airflow scheduler process
+ps aux | grep "airflow scheduler" | grep -v grep | awk '{print $11}'
+
 ## DAG and Task Commands
 
 # List all DAGs
