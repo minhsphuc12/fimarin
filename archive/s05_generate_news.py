@@ -17,13 +17,13 @@ df.head(1).T
 import openai
 from openai import OpenAI
 
-def create_newsletter_api(df, api_key, model="gpt-4o-mini", max_tokens=2048):
+def create_newsletter_api(df, api_key, model="gpt-4o", max_tokens=2048):
     """
     Generate a newsletter from a list of news articles using an LLM.
     
     Parameters:
     - df: dataframe
-    - model: The LLM model to use, default is "gpt-4".
+    - model: The LLM model to use, default is "gpt-4o".
     - max_tokens: The maximum number of tokens to use in the response, default is 2048.
 
     Returns:
