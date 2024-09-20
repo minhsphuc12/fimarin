@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Newsletter Archive</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css">
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #nav-panel {
+            width: 250px;
+            height: 100vh;
+            overflow-y: auto;
+            background-color: #f0f0f0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #content-wrapper {
+            flex-grow: 1;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+        }
+        #nav-panel h2 {
+            margin-top: 0;
+        }
+        #nav-panel ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #nav-panel li {
+            margin-bottom: 10px;
+        }
+        #nav-panel a {
+            text-decoration: none;
+            color: #0366d6;
+        }
+        #nav-panel a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="nav-panel">
+        <h2>Newsletter Archive</h2>
+        <ul id="newsletter-list"></ul>
+    </div>
+    <div id="content-wrapper">
+        <div id="content" class="markdown-body"></div>
+    </div>
+    <script>
+        // Function to get the list of newsletters
+        async function getNewsletterList() {
+            const response = await fetch('https://your-api-gateway-url/newsletter-list');
+            const data = await response.json();
+            return data.newsletters;
+        }
+
+        // Function to fetch and display a specific newsletter
+        async function displayNewsletter(fileName) {
+            const response = await fetch(`https://your-s3-bucket-url/${fileName}`);
+            const markdown = await response.text();
+            document.getElementById('content').innerHTML = marked.parse(markdown);
+        }
+
+        // Populate the navigation panel
+        getNewsletterList().then(newsletters => {
+            const listElement = document.getElementById('newsletter-list');
+            newsletters.forEach(newsletter => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = '#';
+                a.textContent = newsletter.replace('weekly_newsletter_', '').replace('.md', '');
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    displayNewsletter(newsletter);
+                };
+                li.appendChild(a);
+                listElement.appendChild(li);
+            });
+
+            // Display the most recent newsletter by default
+            if (newsletters.length > 0) {
+                displayNewsletter(newsletters[0]);
+            }
+        });
+    </script>
+</body>
+</html>
