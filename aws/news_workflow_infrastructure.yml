@@ -1,0 +1,199 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'News Workflow Infrastructure'
+
+Parameters:
+  DynamoDBTableName:
+    Type: String
+    Default: 'news_articles'
+    Description: 'Name of the DynamoDB table to store news articles'
+  
+  NewsletterBucketName:
+    Type: String
+    Default: 'weekly-newsletters'
+    Description: 'Name of the S3 bucket to store weekly newsletters'
+
+Resources:
+  NewsArticlesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoDBTableName
+      AttributeDefinitions:
+        - AttributeName: url
+          AttributeType: S
+      KeySchema:
+        - AttributeName: url
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  NewsletterBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref NewsletterBucketName
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Scan
+                Resource: !GetAtt NewsArticlesTable.Arn
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource: 
+                  - !GetAtt NewsletterBucket.Arn
+                  - !Join ['', [!GetAtt NewsletterBucket.Arn, '/*']]
+
+  CrawlThoibaonganhangFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: crawl_thoibaonganhang
+      Handler: crawl_thoibaonganhang.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: fimarin_phucnguyen
+        S3Key: crawl_thoibaonganhang.zip
+      Runtime: python3.9
+      Timeout: 300
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref NewsArticlesTable
+
+  CrawlThitruongtaichinhtieteFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: crawl_thitruongtaichinhtiente
+      Handler: crawl_thitruongtaichinhtiente.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: fimarin_phucnguyen
+        S3Key: crawl_thitruongtaichinhtiente.zip
+      Runtime: python3.9
+      Timeout: 300
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref NewsArticlesTable
+
+  ClassifyArticlesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: classify_articles
+      Handler: classify_articles.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: fimarin_phucnguyen
+        S3Key: classify_articles.zip
+      Runtime: python3.9
+      Timeout: 300
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref NewsArticlesTable
+
+  GenerateNewsletterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: generate_weekly_newsletter
+      Handler: generate_weekly_newsletter.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: fimarin_phucnguyen
+        S3Key: generate_weekly_newsletter.zip
+      Runtime: python3.9
+      Timeout: 300
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref NewsArticlesTable
+          NEWSLETTER_BUCKET: !Ref NewsletterBucket
+
+  DailyCrawlRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: "cron(0 0 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt CrawlThoibaonganhangFunction.Arn
+          Id: "CrawlThoibaonganhangTarget"
+        - Arn: !GetAtt CrawlThitruongtaichinhtieteFunction.Arn
+          Id: "CrawlThitruongtaichinhtieteTarget"
+
+  DailyClassifyRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: "cron(0 1 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ClassifyArticlesFunction.Arn
+          Id: "ClassifyArticlesTarget"
+
+  WeeklyNewsletterRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: "cron(0 2 ? * SUN *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt GenerateNewsletterFunction.Arn
+          Id: "GenerateNewsletterTarget"
+
+  CrawlThoibaonganhangPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CrawlThoibaonganhangFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyCrawlRule.Arn
+
+  CrawlThitruongtaichinhtietePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CrawlThitruongtaichinhtieteFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyCrawlRule.Arn
+
+  ClassifyArticlesPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ClassifyArticlesFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyClassifyRule.Arn
+
+  GenerateNewsletterPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GenerateNewsletterFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WeeklyNewsletterRule.Arn
+
+Outputs:
+  DynamoDBTableName:
+    Description: "Name of the DynamoDB table"
+    Value: !Ref NewsArticlesTable
+  
+  NewsletterBucketName:
+    Description: "Name of the S3 bucket for newsletters"
+    Value: !Ref NewsletterBucket
