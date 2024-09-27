@@ -25,7 +25,12 @@
 3. Import CloudFormation template:
    ```
    aws cloudformation create-stack --stack-name my-newsletter-stack --template-body file:///Users/phucnm/git/misc/test_llm/fimarin/aws/news_workflow_infrastructure.yml --capabilities CAPABILITY_NAMED_IAM
+   
+   aws cloudformation update-stack --stack-name my-newsletter-stack --template-body file:///Users/phucnm/git/misc/test_llm/fimarin/aws/news_workflow_infrastructure.yml --capabilities CAPABILITY_NAMED_IAM
 
+   aws cloudformation delete-stack --stack-name my-newsletter-stack
+
+   sam deploy --template-file aws/news_workflow_infrastructure.yml
    ```
 
 ## Monitoring and Management

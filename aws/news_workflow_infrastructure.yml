@@ -12,6 +12,16 @@ Parameters:
     Default: 'weekly-newsletters'
     Description: 'Name of the S3 bucket to store weekly newsletters'
 
+  CodeBucketName:
+    Type: String
+    Default: 'fimarin-phucnguyen'
+    Description: 'Name of the S3 bucket to store Lambda function code'
+
+  LambdaCodeS3KeyPrefix:
+    Type: String
+    Default: 'lambda_functions/'
+    Description: 'S3 key prefix for Lambda function code files'
+
 Resources:
   NewsArticlesTable:
     Type: AWS::DynamoDB::Table
@@ -66,31 +76,33 @@ Resources:
                 Resource: 
                   - !GetAtt NewsletterBucket.Arn
                   - !Join ['', [!GetAtt NewsletterBucket.Arn, '/*']]
+                  - !Join ['', ['arn:aws:s3:::', !Ref CodeBucketName]]
+                  - !Join ['', ['arn:aws:s3:::', !Ref CodeBucketName, '/*']]
 
   CrawlThoibaonganhangFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: crawl_thoibaonganhang
+      FunctionName: !Sub '${AWS::StackName}-crawl_thoibaonganhang'
       Handler: crawl_thoibaonganhang.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: fimarin_phucnguyen
-        S3Key: crawl_thoibaonganhang.zip
+        S3Bucket: !Ref CodeBucketName
+        S3Key: !Sub '${LambdaCodeS3KeyPrefix}crawl_thoibaonganhang.zip'
       Runtime: python3.9
       Timeout: 300
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref NewsArticlesTable
 
-  CrawlThitruongtaichinhtieteFunction:
+  CrawlThitruongtaichinhtienteFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: crawl_thitruongtaichinhtiente
       Handler: crawl_thitruongtaichinhtiente.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: fimarin_phucnguyen
-        S3Key: crawl_thitruongtaichinhtiente.zip
+        S3Bucket: !Ref CodeBucketName
+        S3Key: !Sub '${LambdaCodeS3KeyPrefix}crawl_thitruongtaichinhtiente.zip'
       Runtime: python3.9
       Timeout: 300
       Environment:
@@ -104,8 +116,8 @@ Resources:
       Handler: classify_articles.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: fimarin_phucnguyen
-        S3Key: classify_articles.zip
+        S3Bucket: !Ref CodeBucketName
+        S3Key: !Sub '${LambdaCodeS3KeyPrefix}classify_articles.zip'
       Runtime: python3.9
       Timeout: 300
       Environment:
@@ -119,8 +131,8 @@ Resources:
       Handler: generate_weekly_newsletter.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: fimarin_phucnguyen
-        S3Key: generate_weekly_newsletter.zip
+        S3Bucket: !Ref CodeBucketName
+        S3Key: !Sub '${LambdaCodeS3KeyPrefix}generate_weekly_newsletter.zip'
       Runtime: python3.9
       Timeout: 300
       Environment:
@@ -136,7 +148,7 @@ Resources:
       Targets:
         - Arn: !GetAtt CrawlThoibaonganhangFunction.Arn
           Id: "CrawlThoibaonganhangTarget"
-        - Arn: !GetAtt CrawlThitruongtaichinhtieteFunction.Arn
+        - Arn: !GetAtt CrawlThitruongtaichinhtienteFunction.Arn
           Id: "CrawlThitruongtaichinhtieteTarget"
 
   DailyClassifyRule:
@@ -168,7 +180,7 @@ Resources:
   CrawlThitruongtaichinhtietePermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref CrawlThitruongtaichinhtieteFunction
+      FunctionName: !Ref CrawlThitruongtaichinhtienteFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt DailyCrawlRule.Arn

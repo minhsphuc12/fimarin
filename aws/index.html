@@ -62,16 +62,21 @@
         <div id="content" class="markdown-body"></div>
     </div>
     <script>
+        // Update these URLs with your actual API Gateway URLs
+        const API_BASE_URL = 'https://your-api-gateway-url.execute-api.your-region.amazonaws.com/prod';
+        const NEWSLETTER_LIST_URL = `${API_BASE_URL}/newsletter-list`;
+        const NEWSLETTER_CONTENT_URL = `${API_BASE_URL}/newsletter`;
+
         // Function to get the list of newsletters
         async function getNewsletterList() {
-            const response = await fetch('https://your-api-gateway-url/newsletter-list');
+            const response = await fetch(NEWSLETTER_LIST_URL);
             const data = await response.json();
             return data.newsletters;
         }
 
         // Function to fetch and display a specific newsletter
         async function displayNewsletter(fileName) {
-            const response = await fetch(`https://your-s3-bucket-url/${fileName}`);
+            const response = await fetch(`${NEWSLETTER_CONTENT_URL}?name=${fileName}`);
             const markdown = await response.text();
             document.getElementById('content').innerHTML = marked.parse(markdown);
         }

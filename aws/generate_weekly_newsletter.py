@@ -90,8 +90,6 @@ def generate_newsletter(articles):
 
         newsletter_content += response.choices[0].message.content + "\n\n"
 
-    # Generate executive summary (implementation remains the same)
-
     return newsletter_content
 
 def group_articles_by_category(articles):

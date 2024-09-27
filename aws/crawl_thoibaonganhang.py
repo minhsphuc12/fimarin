@@ -1,7 +1,29 @@
 import boto3
 from botocore.exceptions import ClientError
 import os
-from crawl_thoibaonganhang import crawl_thoibaonganhang
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+
+def crawl_thoibaonganhang():
+    url = "https://thoibaonganhang.vn"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    news_items = []
+    for article in soup.find_all('div', class_='story'):
+        title = article.find('h3', class_='story__title').text.strip()
+        link = article.find('a', class_='story__title')['href']
+        date = article.find('span', class_='story__time').text.strip()
+        
+        news_items.append({
+            'title': title,
+            'url': link,
+            'date': date,
+            'source': 'thoibaonganhang.vn'
+        })
+    
+    return news_items
 
 def lambda_handler(event, context):
     dynamodb = boto3.resource('dynamodb')

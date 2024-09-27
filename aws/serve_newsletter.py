@@ -1,8 +1,9 @@
 import boto3
 import json
+import os
 
 s3 = boto3.client('s3')
-BUCKET_NAME = 'weekly-newsletters-bucket'
+BUCKET_NAME = os.environ['NEWSLETTER_BUCKET']
 
 def lambda_handler(event, context):
     try:
