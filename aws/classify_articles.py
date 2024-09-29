@@ -21,6 +21,13 @@ def lambda_handler(event, context):
     )
     articles = response['Items']
 
+    if not articles:
+        print("No articles found to classify.")
+        return {
+            'statusCode': 200,
+            'body': 'No articles found to classify.'
+        }
+
     # Prepare title_subtitle field
     for article in articles:
         article['title_subtitle'] = article['title'] + ' #:# ' + article.get('subtitle', '')

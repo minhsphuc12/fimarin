@@ -23,6 +23,10 @@ query = {
 }
 articles = list(collection.find(query))
 
+if not articles:
+    print("No articles found to classify.")
+    exit()
+
 # Convert articles to pandas DataFrame
 df = pd.DataFrame(articles)
 
