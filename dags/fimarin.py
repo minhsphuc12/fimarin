@@ -45,14 +45,16 @@ classify_task = BashOperator(
     dag=dag,
 )
 
-def check_if_sunday():
-    if datetime.now().weekday() == 6:  # 6 represents Sunday
+def check_if_sunday(**context):
+    execution_date = context['execution_date']
+    if execution_date.weekday() == 6:  # 6 represents Sunday
         return 'generate_newsletter'
     return 'skip_newsletter'
 
 branch_task = BranchPythonOperator(
     task_id='check_if_sunday',
     python_callable=check_if_sunday,
+    provide_context=True,
     dag=dag,
 )
 
