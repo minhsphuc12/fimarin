@@ -1,8 +1,12 @@
 import boto3
 from datetime import datetime, timedelta
 import os
-from transformers import pipeline
-from googletrans import Translator
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
+from tqdm import tqdm
+
+# Define device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def lambda_handler(event, context):
     dynamodb = boto3.resource('dynamodb')
@@ -17,16 +21,48 @@ def lambda_handler(event, context):
     )
     articles = response['Items']
 
-    # Prepare and classify articles
-    translator = Translator()
+    # Prepare title_subtitle field
     for article in articles:
         article['title_subtitle'] = article['title'] + ' #:# ' + article.get('subtitle', '')
-        article['title_subtitle_en'] = translator.translate(article['title_subtitle'], src='vi', dest='en').text
+
+    # Translate
+    translation_model_name = "VietAI/envit5-translation"
+    translated_texts = translate_batch(['vi:' + article['title_subtitle'] for article in articles], model_name=translation_model_name, batch_size=20)
+    
+    for article, translated_text in zip(articles, translated_texts):
+        article['title_subtitle_en'] = translated_text
 
     categories = [
         'Monetary Policy and Central Bank Updates',
         'Banking Regulations and Compliance',
-        # ... (other categories)
+        'Interest Rate Changes',
+        'Economic Indicators and Market Trends',
+        'Credit and Loan Products',
+        'Unsecured Loan Market Trends',
+        'Digital Banking Innovations',
+        'Fintech Developments',
+        'Cybersecurity in Finance',
+        'Data Privacy and Protection in Banking',
+        'Credit Scoring and Risk Assessment',
+        'Consumer Credit Trends',
+        'Banking Mergers and Acquisitions',
+        'Financial Institution Performance Reports',
+        'Customer Experience and Service Improvements',
+        'Mobile and Online Banking',
+        'Personal Finance and Wealth Management',
+        'Investment Banking News',
+        'Retail Banking Trends',
+        'Payment Systems and Digital Currencies',
+        'Fraud and Anti-Money Laundering (AML)',
+        'Financial Inclusion Initiatives',
+        'Sustainability and Green Finance',
+        'Economic Recovery and Stimulus Measures',
+        'Startups and Venture Capital in Finance',
+        'Market and Stock Exchange News',
+        'Corporate Lending and Business Financing',
+        'Real Estate and Mortgage Markets',
+        'International Banking and Finance News',
+        'Emerging Technologies (AI, Blockchain) in Finance'
     ]
 
     classification_results = classify_text_batch_pipeline(
@@ -72,6 +108,26 @@ def classify_text_batch_pipeline(texts, categories, model_name, batch_size=4):
             results.append({'category': category, 'tags': tags})
 
     return results
+
+def translate_batch(text_list, model_name, batch_size=8, max_length=512):
+    """
+    text_list (list): List of texts to be translated.
+    model_name (str): Name of the translation model.
+    batch_size (int): Number of texts to process in each batch.
+    max_length (int): Maximum length of the translated text.
+    return: List of translated texts.
+    """
+    tokenizer = AutoTokenizer.from_pretrained(model_name)  
+    translator = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
+    translated_texts = []
+    # Process the text list in batches
+    for i in range(0, len(text_list), batch_size):
+        batch_texts = text_list[i:i + batch_size]
+        inputs = tokenizer(batch_texts, return_tensors="pt", padding=True).to(device)
+        outputs = translator.generate(inputs.input_ids, max_length=max_length)
+        translations = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+        translated_texts.extend(translations)
+    return translated_texts
 
 # For local testing
 if __name__ == "__main__":
